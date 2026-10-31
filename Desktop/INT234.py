@@ -253,3 +253,64 @@ plt.xlabel("Importance")
 plt.tight_layout()
 plt.savefig("fig10_feature_importance.png", bbox_inches="tight")
 plt.show()
+
+#Model5: K-Means Clustering
+
+profiles = df.groupby("Subdivision")[months].mean()
+Z_profiles = MinMaxScaler().fit_transform(profiles)   # scaled
+
+#Elbow method to choose k
+inertias = []
+k_range = range(2, 10)
+for k in k_range:
+    km = KMeans(n_clusters=k, random_state=42, n_init=10)
+    km.fit(Z_profiles)
+    inertias.append(km.inertia_)
+
+plt.figure(figsize=(8, 5))
+plt.plot(list(k_range), inertias, marker="o", linewidth=2)
+plt.xlabel("Number of clusters (k)")
+plt.ylabel("Inertia")
+plt.title("K-Means Elbow Method")
+plt.tight_layout()
+plt.savefig("fig11_elbow.png", bbox_inches="tight")
+plt.show()
+
+#Fit final K-Means
+K = 4
+kmeans = KMeans(n_clusters=K, random_state=42, n_init=10)
+kmeans.fit(Z_profiles)
+profiles["Cluster"] = kmeans.labels_
+
+sil = silhouette_score(Z_profiles, kmeans.labels_)
+print(f"\n=== K-Means Clustering (k={K}) ===")
+print(f"Silhouette Score: {sil:.4f}")
+for c in sorted(profiles["Cluster"].unique()):
+    members = profiles[profiles["Cluster"] == c].index.tolist()
+    print(f"Cluster {c}: {', '.join(members)}")
+
+# PCA visualisation of clusters
+pca = PCA(n_components=2, random_state=42)
+P = pca.fit_transform(Z_profiles)
+
+plt.figure(figsize=(10, 6))
+palette = sns.color_palette("viridis", K)
+for c in range(K):
+    mask = profiles["Cluster"] == c
+    plt.scatter(P[mask, 0], P[mask, 1], s=140,
+                color=palette[c], label=f"Cluster {c}",
+                edgecolors="black", alpha=0.85)
+for i, name in enumerate(profiles.index):
+    plt.annotate(name[:14], (P[i, 0], P[i, 1]),
+                 fontsize=7, alpha=0.8)
+plt.xlabel(f"PC1 ({pca.explained_variance_ratio_[0]*100:.1f}% variance)")
+plt.ylabel(f"PC2 ({pca.explained_variance_ratio_[1]*100:.1f}% variance)")
+plt.title(f"Subdivisions in PCA space (K-Means k={K})")
+plt.legend()
+plt.tight_layout()
+plt.savefig("fig12_pca_clusters.png", bbox_inches="tight")
+plt.show()
+
+print("\nPCA explained variance ratio:",
+      pca.explained_variance_ratio_.round(3))
+
