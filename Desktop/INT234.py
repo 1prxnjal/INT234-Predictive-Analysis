@@ -167,3 +167,22 @@ plt.legend()
 plt.tight_layout()
 plt.savefig("fig6_mlr_actual_vs_pred.png", bbox_inches="tight")
 plt.show()
+
+#Model 3: K-Nearest Neighbors
+
+knn_model = KNeighborsClassifier(n_neighbors=7)
+knn_model.fit(Xc_train_scaled, y_cls_train)
+y_pred_knn = knn_model.predict(Xc_test_scaled)
+
+knn_metrics = {
+    "Accuracy":  accuracy_score(y_cls_test, y_pred_knn),
+    "Precision": precision_score(y_cls_test, y_pred_knn, zero_division=0),
+    "Recall":    recall_score(y_cls_test, y_pred_knn, zero_division=0),
+    "F1":        f1_score(y_cls_test, y_pred_knn, zero_division=0)
+}
+print("\n=== KNN (k=7) ===")
+for k, v in knn_metrics.items():
+    print(f"{k}: {v:.4f}")
+print("\nClassification Report:")
+print(classification_report(y_cls_test, y_pred_knn,
+                            target_names=["Low monsoon","High monsoon"]))
