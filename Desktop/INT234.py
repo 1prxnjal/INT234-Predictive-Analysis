@@ -186,3 +186,70 @@ for k, v in knn_metrics.items():
 print("\nClassification Report:")
 print(classification_report(y_cls_test, y_pred_knn,
                             target_names=["Low monsoon","High monsoon"]))
+
+#Model4: Decision Tree
+
+dt_model = DecisionTreeClassifier(criterion="entropy", max_depth=6,
+                                  random_state=42)
+dt_model.fit(Xc_train, y_cls_train)
+y_pred_dt = dt_model.predict(Xc_test)
+
+dt_metrics = {
+    "Accuracy":  accuracy_score(y_cls_test, y_pred_dt),
+    "Precision": precision_score(y_cls_test, y_pred_dt, zero_division=0),
+    "Recall":    recall_score(y_cls_test, y_pred_dt, zero_division=0),
+    "F1":        f1_score(y_cls_test, y_pred_dt, zero_division=0)
+}
+print("\n=== Decision Tree (max_depth=6, entropy) ===")
+for k, v in dt_metrics.items():
+    print(f"{k}: {v:.4f}")
+print("\nClassification Report:")
+print(classification_report(y_cls_test, y_pred_dt,
+                            target_names=["Low monsoon","High monsoon"]))
+
+# Classification comparison table
+cls_results = pd.DataFrame([
+    {"Model": "KNN (k=7)", **knn_metrics},
+    {"Model": "Decision Tree", **dt_metrics}
+])
+print("\nClassification Comparison:")
+print(cls_results.round(4).to_string(index=False))
+
+# Side-by-side confusion matrices
+fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+for ax, (name, model, pred, X_use, cmap) in zip(
+    axes,
+    [("KNN (k=7)", knn_model, y_pred_knn, Xc_test_scaled, "Blues"),
+     ("Decision Tree", dt_model, y_pred_dt, Xc_test, "Greens")]
+):
+    cm = confusion_matrix(y_cls_test, pred)
+    sns.heatmap(cm, annot=True, fmt="d", cmap=cmap, ax=ax,
+                xticklabels=["Low", "High"], yticklabels=["Low", "High"])
+    ax.set_title(name)
+    ax.set_xlabel("Predicted")
+    ax.set_ylabel("Actual")
+plt.suptitle("Confusion Matrices — Classification Models")
+plt.tight_layout()
+plt.savefig("fig8_confusion_matrices.png", bbox_inches="tight")
+plt.show()
+
+# Decision tree structure 
+plt.figure(figsize=(16, 8))
+plot_tree(dt_model, max_depth=3, filled=True, feature_names=Xc_train.columns,
+          class_names=["Low", "High"], rounded=True, fontsize=8)
+plt.title("Decision Tree Structure (top 3 levels)")
+plt.tight_layout()
+plt.savefig("fig9_tree_structure.png", bbox_inches="tight")
+plt.show()
+
+# Feature importance
+imp = pd.Series(dt_model.feature_importances_, index=Xc_train.columns)
+imp = imp.sort_values(ascending=False).head(10)
+plt.figure(figsize=(9, 5))
+imp.plot(kind="barh", color="teal", edgecolor="black")
+plt.gca().invert_yaxis()
+plt.title("Top 10 Feature Importances — Decision Tree")
+plt.xlabel("Importance")
+plt.tight_layout()
+plt.savefig("fig10_feature_importance.png", bbox_inches="tight")
+plt.show()
