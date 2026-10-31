@@ -106,3 +106,64 @@ plt.ylabel("JJAS Rainfall (mm)")
 plt.tight_layout()
 plt.savefig("fig5_time_series.png", bbox_inches="tight")
 plt.show()
+TARGET = "JJAS"
+dummies = pd.get_dummies(df["Subdivision"], prefix="sd", drop_first=True).astype(int)
+
+base = pd.concat([
+    df[["Year","JF","MAM",TARGET]].reset_index(drop=True),
+    dummies.reset_index(drop=True)
+], axis=1)
+base["Subdivision"] = df["Subdivision"].values 
+
+feature_cols = ["Year","JF","MAM"] + list(dummies.columns)
+X_reg = base[feature_cols]
+y_reg = base[TARGET]
+
+
+base["high_monsoon"] = (
+    base[TARGET] > base.groupby("Subdivision")[TARGET].transform("median")
+).astype(int)
+y_cls = base["high_monsoon"]
+
+# Train / test splits 
+X_train, X_test, y_reg_train, y_reg_test = train_test_split(
+    X_reg, y_reg, test_size=0.2, random_state=42)
+Xc_train, Xc_test, y_cls_train, y_cls_test = train_test_split(
+    X_reg, y_cls, test_size=0.2, random_state=42, stratify=y_cls)
+
+# MinMax normalization 
+scaler = MinMaxScaler()
+Xc_train_scaled = scaler.fit_transform(Xc_train)
+Xc_test_scaled  = scaler.transform(Xc_test)
+
+print("\nClass balance (high_monsoon):",
+      y_cls.value_counts(normalize=True).round(3).to_dict())
+
+#Model 1 : MLR
+lin_model = LinearRegression()
+lin_model.fit(X_train, y_reg_train)
+y_pred_lin = lin_model.predict(X_test)
+
+lin_metrics = {
+    "MAE":  mean_absolute_error(y_reg_test, y_pred_lin),
+    "MSE":  mean_squared_error(y_reg_test, y_pred_lin),
+    "RMSE": np.sqrt(mean_squared_error(y_reg_test, y_pred_lin)),
+    "R2":   r2_score(y_reg_test, y_pred_lin)
+}
+print("\n=== Multiple Linear Regression ===")
+for k, v in lin_metrics.items():
+    print(f"{k}: {v:.4f}")
+
+# Actual vs Predicted plot
+plt.figure(figsize=(7, 6))
+plt.scatter(y_reg_test, y_pred_lin, alpha=0.5, edgecolors="k", s=25)
+lims = [min(y_reg_test.min(), y_pred_lin.min()),
+        max(y_reg_test.max(), y_pred_lin.max())]
+plt.plot(lims, lims, "r--", linewidth=2, label="Perfect fit")
+plt.xlabel("Actual JJAS (mm)")
+plt.ylabel("Predicted JJAS (mm)")
+plt.title("MLR — Actual vs Predicted (test set)")
+plt.legend()
+plt.tight_layout()
+plt.savefig("fig6_mlr_actual_vs_pred.png", bbox_inches="tight")
+plt.show()
